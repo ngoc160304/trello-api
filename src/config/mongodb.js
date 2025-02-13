@@ -16,12 +16,17 @@ const mongoClientInstance = new MongoClient(MONGO_URI, {
     deprecationErrors: true
   }
 });
-export const CONNECT_DB = async () => {
+const CONNECT_DB = async () => {
   await mongoClientInstance.connect();
   trelloDatabaseInstance = mongoClientInstance.db(DATABASE_NAME);
 };
 // Chi goi ham nay sau khi connect thanh cong toi DB
-export const GET_DB = () => {
+const GET_DB = () => {
   if (!trelloDatabaseInstance) throw new Error('Must connect to DB first');
   return trelloDatabaseInstance;
 };
+const CLOSE_DB = async () => {
+  await mongoClientInstance.close();
+};
+
+export { CONNECT_DB, GET_DB, CLOSE_DB };

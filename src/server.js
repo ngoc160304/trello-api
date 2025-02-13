@@ -15,10 +15,10 @@
  *
  */
 import express from 'express';
-import { CONNECT_DB, GET_DB } from '~/config/mongodb';
+import { CLOSE_DB, CONNECT_DB, GET_DB } from '~/config/mongodb';
 // import { mapOrder } from '~/utils/sorts.js';
-import { mapOrder } from '~/utils/sorts';
-
+// import { mapOrder } from '~/utils/sorts';
+import exitHook from 'async-exit-hook';
 const START_SERVER = () => {
   const app = express();
 
@@ -34,6 +34,9 @@ const START_SERVER = () => {
   app.listen(port, hostname, () => {
     // eslint-disable-next-line no-console
     console.log(`Hello Trung Quan Dev, I am running at ${hostname}:${port}/`);
+  });
+  exitHook(() => {
+    CLOSE_DB();
   });
 };
 

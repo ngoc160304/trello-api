@@ -3,9 +3,10 @@
  * YouTube: https://youtube.com/@trungquandev
  * "A bit of fragrance clings to the hand that gives flowers!"
  */
-const MONGO_URI = 'mongodb+srv://ngoc52627:ZG5a0VE0ebDIzNep@cluster0.usg9bp2.mongodb.net/';
-const DATABASE_NAME = 'trello';
 import { MongoClient, ServerApiVersion } from 'mongodb';
+import { env } from './environment';
+const MONGO_URI = env.MONGODB_URI;
+const DATABASE_NAME = env.DATABASE_NAME;
 
 let trelloDatabaseInstance = null;
 

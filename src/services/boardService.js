@@ -13,22 +13,23 @@ import { StatusCodes } from 'http-status-codes';
 import { cloneDeep } from 'lodash';
 import { columnModel } from '~/models/columnModel';
 import { cardModel } from '~/models/cardModel';
-const createNew = async (reqBody) => {
+import { DEFAULT_ITEMS_PER_PAGE, DEFAULT_PAGE } from '~/utils/constants';
+const createNew = async (userId, reqBody) => {
   try {
     const newBoard = {
       ...reqBody,
       slug: slugify(reqBody.title)
     };
-    const craetedBoard = await boardModel.createNew(newBoard);
+    const craetedBoard = await boardModel.createNew(userId, newBoard);
     const getNewBoard = await boardModel.findOneById(craetedBoard.insertedId);
     return getNewBoard;
   } catch (error) {
     throw error;
   }
 };
-const getDetails = async (boardId) => {
+const getDetails = async (userId, boardId) => {
   try {
-    const board = await boardModel.getDetails(boardId);
+    const board = await boardModel.getDetails(userId, boardId);
     if (!board) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found');
     }
@@ -77,9 +78,25 @@ const moveCardToDifferentColumn = async (reqBody) => {
     throw error;
   }
 };
+const getBoards = async (userId, page, itemsPerPage, queryFilters) => {
+  try {
+    if (!page) page = DEFAULT_PAGE;
+    if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
+    const result = await boardModel.getBoards(
+      userId,
+      parseInt(page, 10),
+      parseInt(itemsPerPage, 10),
+      queryFilters
+    );
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
 export const boardService = {
   createNew,
   getDetails,
   update,
-  moveCardToDifferentColumn
+  moveCardToDifferentColumn,
+  getBoards
 };

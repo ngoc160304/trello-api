@@ -18,7 +18,7 @@
  * thư viện cross-env nếu không có cross-env thì sẽ không chạy được trên window
  * cần tạo ra 1 lệnh (hay biến) môi trường env vào script trong package.json
  * liên quan đến vấn đề bảo mật (ví dụ trong môi trường dev sẽ hiển thị ra stack lỗi trong khi prod thì không để tránh hiện cấu trúc thư mực code)
- * @Aggregate qurry tong hop
+ * @Aggregate querry tong hop
  * - kieu enum SQL
  */
 import express from 'express';
@@ -32,6 +32,9 @@ import { env } from './config/environment';
 import { APIs_V1 } from '~/routes/v1';
 import { corsOptions } from './config/cors';
 import cookieParser from 'cookie-parser';
+import socketIo from 'socket.io';
+import http from 'http';
+import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket';
 const START_SERVER = () => {
   const app = express();
   app.use((req, res, next) => {
@@ -39,14 +42,34 @@ const START_SERVER = () => {
     next();
   });
   app.use(cookieParser());
+  app.get('/', (req, res) => {
+    res.json({
+      run: 'ok'
+    });
+  });
   app.use(cors(corsOptions));
   app.use(express.json());
   app.use('/v1', APIs_V1);
   app.use(errorHandlingMiddleware);
-  app.listen(env.APP_PORT, env.APP_HOST, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Hello Trung Quan Dev, I am running at ${env.APP_HOST}:${env.APP_PORT}/`);
+  const server = http.createServer(app);
+  // Khoi tao bien io voi server va cors
+  const io = socketIo(server, {
+    cors: corsOptions
   });
+  io.on('connection', (socket) => {
+    console.log('a user connected');
+    inviteUserToBoardSocket(socket);
+  });
+  if (env.BUILD_MODE === 'production') {
+    server.listen(env.PORT, () => {
+      console.log(`App is run in product enviroment on port ${process.env.PORT}`);
+    });
+  } else {
+    server.listen(env.APP_PORT, env.APP_HOST, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Hello Trung Quan Dev, I am running at ${env.APP_HOST}:${env.APP_PORT}/`);
+    });
+  }
   exitHook(() => {
     CLOSE_DB();
   });

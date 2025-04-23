@@ -9,6 +9,7 @@ import { WEBSITE_DOMAIN } from '~/utils/constants';
 import { BrevoProvider } from '~/providers/BrevoProvider';
 import { env } from '~/config/environment';
 import { JwtProvider } from '~/providers/JwtProvider';
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider';
 const createNew = async (reqBody) => {
   try {
     const existUser = await userModel.findOneByEmail(reqBody.email);
@@ -85,13 +86,14 @@ const login = async (reqBody) => {
     const accessToken = await JwtProvider.generateToken(
       userInfo,
       env.ACCESS_TOKEN_SECRET_SIGNATURE,
-      // env.ACCESS_TOKEN_LIFE
-      15
+      env.ACCESS_TOKEN_LIFE
+      // 5
     );
     const refreshToken = await JwtProvider.generateToken(
       userInfo,
       env.REFRESH_TOKEN_SECRET_SIGNATURE,
       env.REFRESH_TOKEN_LIFE
+      // 15
     );
 
     // Tao thong tin de dinh kem trong JWT bao gom id va email cua user
@@ -116,8 +118,45 @@ const refreshToken = async (clietRefreshToken) => {
       userInfo,
       env.ACCESS_TOKEN_SECRET_SIGNATURE,
       env.ACCESS_TOKEN_LIFE
+      // 5
     );
     return { accessToken };
+  } catch (error) {
+    throw error;
+  }
+};
+const update = async (userId, reqBody, userAvartarfile) => {
+  try {
+    const existUser = await userModel.findOneById(userId);
+    if (!existUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found');
+    }
+    if (!existUser.isActive) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already active!');
+    }
+    let updatedUser = {};
+    // TH1: change password
+    if (reqBody.current_password && reqBody.new_password) {
+      // Kiem tra cai current_password co dung hay khon
+      if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your current password is incorrect!');
+      }
+      // Neu nhu current password dung thi chung ta se add mot cai mk moi vao db
+      updatedUser = await userModel.update(userId, {
+        password: bcryptjs.hashSync(reqBody.new_password, 8)
+      });
+    } else if (userAvartarfile) {
+      // Truong hop upload file len cloudinary
+      const uploadResult = await CloudinaryProvider.streamUpload(userAvartarfile.buffer, 'users');
+      // Lưu lại url của file ảnh vào trong db
+      updatedUser = await userModel.update(userId, {
+        avatar: uploadResult.secure_url
+      });
+    } else {
+      // TH2 update cac thong tin chung vi du displayname
+      updatedUser = await userModel.update(userId, reqBody);
+    }
+    return pickUser(updatedUser);
   } catch (error) {
     throw error;
   }
@@ -126,5 +165,6 @@ export const userService = {
   createNew,
   verifyAccount,
   login,
-  refreshToken
+  refreshToken,
+  update
 };

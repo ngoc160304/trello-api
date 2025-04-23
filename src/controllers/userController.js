@@ -64,10 +64,21 @@ const refreshToken = async (req, res, next) => {
     next(new ApiError(StatusCodes.FORBIDDEN, 'Please Sign In! (Error from refresh Token'));
   }
 };
+const update = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id;
+    const userAvartarfile = req.file;
+    const updatedUser = await userService.update(userId, req.body, userAvartarfile);
+    res.status(StatusCodes.NON_AUTHORITATIVE_INFORMATION).json(updatedUser);
+  } catch (error) {
+    next(error);
+  }
+};
 export const userController = {
   createNew,
   verifyAccount,
   login,
   logout,
-  refreshToken
+  refreshToken,
+  update
 };

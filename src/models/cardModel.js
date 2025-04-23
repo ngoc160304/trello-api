@@ -1,7 +1,13 @@
 import Joi from 'joi';
 import { ObjectId } from 'mongodb';
 import { GET_DB } from '~/config/mongodb';
-import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators';
+import { CARD_MEMBER_ACTIONS } from '~/utils/constants';
+import {
+  EMAIL_RULE,
+  EMAIL_RULE_MESSAGE,
+  OBJECT_ID_RULE,
+  OBJECT_ID_RULE_MESSAGE
+} from '~/utils/validators';
 // import { OBJECT_ID_RULE } from '~/utils/validators';
 // Define Collection (name & schema)
 const CARD_COLLECTION_NAME = 'cards';
@@ -11,7 +17,20 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
 
   title: Joi.string().required().min(3).max(50).trim().strict(),
   description: Joi.string().optional(),
-
+  cover: Joi.string().default(null),
+  memberIds: Joi.array()
+    .items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE))
+    .default([]),
+  comments: Joi.array()
+    .items({
+      userId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+      userEmail: Joi.string().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
+      userAvatar: Joi.string(),
+      userDisplayName: Joi.string(),
+      content: Joi.string(),
+      commentdAt: Joi.date().timestamp('javascript')
+    })
+    .default([]),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)
@@ -92,11 +111,68 @@ const deleteManyByColumnId = async (columnId) => {
     throw new Error(error);
   }
 };
+const unshiftNewComment = async (cardId, updatedData) => {
+  try {
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: ObjectId.createFromHexString(cardId) },
+        {
+          $push: {
+            comments: {
+              $each: [updatedData],
+              $position: 0
+            }
+          }
+        },
+        {
+          returnDocument: 'after'
+        }
+      );
+    return result;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+const updateMembers = async (cardId, incomingMemberInfo) => {
+  try {
+    let updateCondition = {};
+    if (incomingMemberInfo.action === CARD_MEMBER_ACTIONS.ADD) {
+      updateCondition = {
+        $push: {
+          memberIds: ObjectId.createFromHexString(incomingMemberInfo.userId)
+        }
+      };
+    } else {
+      updateCondition = {
+        $pull: {
+          memberIds: ObjectId.createFromHexString(incomingMemberInfo.userId)
+        }
+      };
+    }
+    const result = await GET_DB()
+      .collection(CARD_COLLECTION_NAME)
+      .findOneAndUpdate(
+        {
+          _id: ObjectId.createFromHexString(cardId)
+        },
+        updateCondition,
+        {
+          returnDocument: 'after'
+        }
+      );
+    return result;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
   findOneById,
   createNew,
   update,
-  deleteManyByColumnId
+  deleteManyByColumnId,
+  unshiftNewComment,
+  updateMembers
 };
